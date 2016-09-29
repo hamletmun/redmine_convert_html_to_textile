@@ -33,24 +33,51 @@ end
 def convert_html_to_textile(html)
   require 'tempfile'
 
-  # Pre-process
-  html.gsub!(/\*/, 'preprocessedstar')
-  html.gsub!(/\n/, 'preprecessedendofline')
-  html.gsub!(/<pre>/, 'preprocessedpreopening')
-  html.gsub!(/<\/pre>/, 'preprocessedpreclosing')
-  html.gsub!(/<tr>|<tr[^>]+>/, 'preprocessedtropening')
-  html.gsub!(/<td>|<td[^>]+>/, '')
-  html.gsub!(/<\/td>/, 'preprocessedtdclosing')
-  html.gsub!(/<\/tr>/, 'preprocessedtrclosing')
+  html.gsub!(/<pre>(.*?)<\/pre>/m) do |match|
+    match.gsub!(/<\/?code>/, '')
+    match.gsub!(/\n/, 'preprocessedlinefeed')
+    match.gsub(/<\/?p>|<p [^>]*>/, '')
+  end
+
+  html.gsub!(/<blockquote>(.*?)<\/blockquote>/m) do |match|
+    match.gsub!(/\n/, 'preprocessedlinefeed')
+    match.gsub(/<\/?p>|<p [^>]*>/, '')
+  end
+
+  html.gsub!(/<li\ [^>]+>/, '<li>')
+  html.gsub!(/<ol\ [^>]+>/, '<ol>')
+  html.gsub!(/<ul\ [^>]+>/, '<ul>')
+
+  html.gsub!(/<li>(.*?)<\/li>/m) do |match|
+    match.gsub(/<\/?p>|<p [^>]*>/, '')
+  end
+
+  html.gsub!(/<table(.*?)<\/table>/m) do |match|
+    match.gsub!(/<tr>|<tr[^>]*>/, 'preprocessedtropening')
+    match.gsub!(/<th>|<td>|<td[^>]*>/, '')
+    match.gsub!(/<\/th>|<\/td>/, 'preprocessedtdclosing')
+    match.gsub!(/<\/tr>/, '')
+    match.gsub(/<\/?p>|<p [^>]*>/, '')
+  end
   html.gsub!(/<\/table>/, "</table>\npreprocessedtableclosing")
 
+  # Pre-process
+  html.gsub!(/\*/, 'preprocessedstar')
+  html.gsub!(/<pre>/, "preprocessedpreopening")
+  html.gsub!(/<\/pre>/, "preprocessedpreclosing")
+
   # Remove problematic tags
-  html.gsub!(/<\/?code>/, '')
-  html.gsub!(/<p>|<p\ [^>]+>|<\/p>/, '')
-  html.gsub!(/<span>|<span\ [^>]+>|<\/span>/, '')
+  html.gsub!(/<\/?div[^>]*?>/, '')
+  html.gsub!(/<\/?span[^>]*?>/, '')
+  html.gsub!(/<\/?address[^>]*?>/, '')
 
   # HTML code for Nonbreaking space
   html.gsub!(/&nbsp;+/, ' ')
+
+
+#  return html
+#end
+#def test
 
   src = Tempfile.new('src')
   src.write(html)
@@ -76,15 +103,19 @@ def convert_html_to_textile(html)
 
   # Post-process
   textile.gsub!(/preprocessedstar/, '*')
-  textile.gsub!(/preprecessedendofline/, "\n")
+  textile.gsub!(/preprocessedlinefeed/, "\n")
   textile.gsub!(/preprocessedpreopening/, '<pre>')
   textile.gsub!(/preprocessedpreclosing/, '</pre>')
-  textile.gsub!(/preprocessedtropening\s+/, "\n|")
-  textile.gsub!(/\s+preprocessedtdclosing\s+/, '|')
-  textile.gsub!(/preprocessedtrclosing\s+/, "\n")
+  textile.gsub!(/ *<pre> */, '<pre>')
+  textile.gsub!(/ *<\/pre> */, '</pre>')
+  textile.gsub!(/(\S+)<pre>/, "\\1\n<pre>")
+  textile.gsub!(/(\S+)<\/pre>/, "\\1\n<\/pre>")
+  textile.gsub!(/preprocessedtropening\s+?/, "\n|")
+  textile.gsub!(/\s*?preprocessedtdclosing\s+?/, '|')
   textile.gsub!(/preprocessedtableclosing/, "\n")
 
   # HTML codes
+  textile.gsub!(/&amp;/, '&')
   textile.gsub!(/&quot;/, '"')
   textile.gsub!(/&gt;/, '>')
   textile.gsub!(/&lt;/, '<')
@@ -93,9 +124,17 @@ def convert_html_to_textile(html)
   textile.gsub!(/&#45;/, '-')
   textile.gsub!(/&#64;/, '@')
   textile.gsub!(/&#95;/, '_')
+  textile.gsub!(/&#124;/, '|')
 
   # pandoc converts <a href="http://a.com">http://a.com</a> to "$":http://a.com
-  textile.gsub!(/\"\$\":(\S*)\./, "\\1")
+  textile.gsub!(/\"\$\":(\S*)\.?/, "\\1")
+
+  textile.gsub!(/<blockquote>(.*?)<\/blockquote>/m) do |match|
+    match.gsub(/^/, ">\ ")
+  end
+  textile.gsub!(/<\/?blockquote>/, '')
+
+  textile.gsub!(/"":/, '')
 
   return textile
 end
