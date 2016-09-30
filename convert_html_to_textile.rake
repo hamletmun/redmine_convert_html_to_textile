@@ -8,6 +8,8 @@ task :convert_html_to_textile => :environment do
     Document => [:description],
     Project => [:description],
     Journal => [:notes],
+#    KbArticle => [:content],
+#    IssueTemplate => [:description],
   }
 
   count = 0
@@ -33,6 +35,7 @@ end
 def convert_html_to_textile(html)
   require 'tempfile'
 
+  # Pre-process
   html.gsub!(/<pre>(.*?)<\/pre>/m) do |match|
     match.gsub!(/<\/?code>/, '')
     match.gsub!(/\n/, 'preprocessedlinefeed')
@@ -61,7 +64,6 @@ def convert_html_to_textile(html)
   end
   html.gsub!(/<\/table>/, "</table>\npreprocessedtableclosing")
 
-  # Pre-process
   html.gsub!(/\*/, 'preprocessedstar')
   html.gsub!(/<pre>/, "preprocessedpreopening")
   html.gsub!(/<\/pre>/, "preprocessedpreclosing")
@@ -133,7 +135,7 @@ def convert_html_to_textile(html)
     match.gsub(/^/, ">\ ")
   end
   textile.gsub!(/<\/?blockquote>/, '')
-
+  textile.gsub!(/<\/?div[^>]*?>/, '')
   textile.gsub!(/"":/, '')
 
   return textile
